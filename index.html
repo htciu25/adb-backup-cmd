@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADB Backup 指令產生器 V_1141106</title>
+<style>
+body {
+  background: #0b1020;
+  color: #e6ebff;
+  font-family: "Microsoft JhengHei", sans-serif;
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  padding: 12px 20px;
+  background: #11182a;
+  border-bottom: 1px solid #2b355a;
+  font-size: 20px;
+  font-weight: bold;
+}
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 20px;
+}
+.section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  background: #11182a;
+  border: 1px solid #2b355a;
+  border-radius: 10px;
+  padding: 16px;
+}
+.left { width: 45%; }
+.right { flex: 1; display: flex; flex-direction: column; }
+h2 { font-size: 16px; color: #a7b6de; margin-bottom: 6px; }
+label { display: block; margin: 4px 0; cursor: pointer; }
+textarea {
+  width: 100%;
+  flex: 1;
+  border-radius: 8px;
+  border: 1px solid #2b355a;
+  background: #0c1020;
+  color: #dfe6ff;
+  padding: 12px;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  resize: none;
+}
+button {
+  margin-top: 10px;
+  padding: 8px 14px;
+  background: #17603a;
+  border: none;
+  color: #fff;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  align-self: flex-end;
+}
+input[type="text"] {
+  width: 42%;
+  padding: 6px;
+  margin-right: 4px;
+  border: 1px solid #2b355a;
+  border-radius: 6px;
+  background: #0c1020;
+  color: #fff;
+}
+.add-row {
+  background: #2b355a;
+  border: none;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 6px;
+}
+</style>
+</head>
+<body>
+<header>ADB Backup 指令產生器</header>
+<main>
+
+<!-- 第一區段 -->
+<div class="section">
+  <div class="left">
+    <h2>1️⃣ 初始化與裝置資訊</h2>
+    <label><input type="checkbox" id="chkModel" checked> 裝置型號（ro.product.model）</label>
+    <label><input type="checkbox" id="chkSerial" checked> 序號（ro.serialno）</label>
+  </div>
+  <div class="right">
+    <textarea id="outInfo" readonly></textarea>
+    <button id="copyInfo">📋 複製此區段</button>
+  </div>
+</div>
+
+<!-- 第二區段 -->
+<div class="section">
+  <div class="left">
+    <h2>2️⃣ 列出所有已安裝 App</h2>
+    <p>顯示裝置中所有套件：</p>
+  </div>
+  <div class="right">
+    <textarea id="outList" readonly></textarea>
+    <button id="copyList">📋 複製此區段</button>
+  </div>
+</div>
+
+<!-- 第三區段 -->
+<div class="section">
+  <div class="left">
+    <h2>3️⃣ 打包常見 App 並下載至當前資料夾</h2>
+    <label><input type="checkbox" class="app" data-bundle="jp.naver.line.android"> LINE</label>
+    <label><input type="checkbox" class="app" data-bundle="org.telegram.messenger"> Telegram</label>
+    <label><input type="checkbox" class="app" data-bundle="com.tencent.mm"> WeChat</label>
+    <label><input type="checkbox" class="app" data-bundle="com.facebook.katana"> Facebook</label>
+    <label><input type="checkbox" class="app" data-bundle="com.instagram.android"> Instagram</label>
+    <label><input type="checkbox" class="app" data-bundle="com.instagram.threadsapp"> Threads</label>
+    <label><input type="checkbox" class="app" data-bundle="com.twitter.android"> X（Twitter）</label>
+
+    <h3 style="margin-top:10px; color:#a7b6de;">➕ 自定義打包項目</h3>
+    <div id="customList"></div>
+    <button class="add-row" id="addRow">＋ 新增一筆</button>
+  </div>
+  <div class="right">
+    <textarea id="outPull" readonly></textarea>
+    <button id="copyPull">📋 複製此區段</button>
+  </div>
+</div>
+
+<!-- 整合區 -->
+<div class="section">
+  <div class="left">
+    <h2>🧾 整合複製（單行執行）</h2>
+  </div>
+  <div class="right">
+    <textarea id="outAll" readonly></textarea>
+    <button id="copyAll">📋 複製整合指令</button>
+  </div>
+</div>
+
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+function buildInfo(){
+  const cmds=["adb kill-server","adb start-server","adb devices"];
+  if($('#chkModel').checked) cmds.push("adb shell getprop ro.product.model");
+  if($('#chkSerial').checked) cmds.push("adb shell getprop ro.serialno");
+  return cmds.join(" && ");
+}
+function buildList(){
+  return "adb shell pm list packages";
+}
+function buildPull(){
+  const cmds=[];
+  document.querySelectorAll('.app:checked').forEach(a=>{
+    const name=a.nextSibling.textContent.trim().replace(/[()]/g,'');
+    const bundle=a.dataset.bundle;
+    cmds.push(`adb shell "su -c 'tar -cf /sdcard/${name.toLowerCase()}_backup.tar /data/data/${bundle}/'" && adb pull /sdcard/${name.toLowerCase()}_backup.tar .\\`);
+  });
+  document.querySelectorAll('.custom-row').forEach(r=>{
+    const name=r.querySelector('.cname').value.trim();
+    const bundle=r.querySelector('.cbundle').value.trim();
+    if(name && bundle)
+      cmds.push(`adb shell "su -c 'tar -cf /sdcard/${name}_backup.tar /data/data/${bundle}/'" && adb pull /sdcard/${name}_backup.tar .\\`);
+  });
+  return cmds.join(" && ");
+}
+function updateAll(){
+  const info=buildInfo(), list=buildList(), pull=buildPull();
+  $('#outInfo').value=info;
+  $('#outList').value=list;
+  $('#outPull').value=pull;
+  $('#outAll').value=[info,list,pull].filter(Boolean).join(" && ");
+}
+function addCustomRow(){
+  const div=document.createElement('div');
+  div.className='custom-row';
+  div.innerHTML=`<input type="text" class="cname" placeholder="存檔名稱"> <input type="text" class="cbundle" placeholder="Bundle 名稱">`;
+  $('#customList').appendChild(div);
+  div.querySelectorAll('input').forEach(i=>i.addEventListener('input',updateAll));
+}
+$('#addRow').onclick=()=>{addCustomRow();updateAll();};
+document.querySelectorAll('input').forEach(el=>el.addEventListener('input',updateAll));
+document.querySelectorAll('input').forEach(el=>el.addEventListener('change',updateAll));
+async function copy(id,btn){
+  const txt=$(id).value.trim(); if(!txt) return;
+  await navigator.clipboard.writeText(txt);
+  $(btn).textContent='✅ 已複製';
+  setTimeout(()=>$(btn).textContent='📋 複製',1000);
+}
+$('#copyInfo').onclick=()=>copy('#outInfo','#copyInfo');
+$('#copyList').onclick=()=>copy('#outList','#copyList');
+$('#copyPull').onclick=()=>copy('#outPull','#copyPull');
+$('#copyAll').onclick=()=>copy('#outAll','#copyAll');
+updateAll();
+</script>
+</body>
+</html>
